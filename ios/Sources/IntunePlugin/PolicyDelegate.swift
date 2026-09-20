@@ -1,3 +1,4 @@
+import Foundation
 import IntuneMAMSwift
 
 class PolicyDelegateClass: NSObject, IntuneMAMPolicyDelegate {

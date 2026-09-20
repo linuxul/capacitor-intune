@@ -1,25 +1,31 @@
 import XCTest
-@testable import Plugin
+@testable import IntunePlugin
 
 class IntuneTests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+    func testPluginIsRegisteredUnderItsJavaScriptName() {
+        let plugin = IntuneMAM()
+
+        XCTAssertEqual(plugin.identifier, "IntuneMAM")
+        XCTAssertEqual(plugin.jsName, "IntuneMAM")
     }
 
-    override func tearDown() {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-        super.tearDown()
-    }
+    func testPluginExposesItsMethodsAsPromises() {
+        let plugin = IntuneMAM()
 
-    func testEcho() {
-        // This is an example of a functional test case for a plugin.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-
-        let implementation = Intune()
-        let value = "Hello, World!"
-        let result = implementation.echo(value)
-
-        XCTAssertEqual(value, result)
+        XCTAssertEqual(plugin.pluginMethods.map(\.name), [
+            "loginAndEnrollAccount",
+            "acquireToken",
+            "acquireTokenSilent",
+            "registerAndEnrollAccount",
+            "enrolledAccount",
+            "deRegisterAndUnenrollAccount",
+            "logoutOfAccount",
+            "getPolicy",
+            "groupName",
+            "appConfig",
+            "sdkVersion",
+            "displayDiagnosticConsole"
+        ])
+        XCTAssertTrue(plugin.pluginMethods.allSatisfy { $0.returnType == .promise })
     }
 }

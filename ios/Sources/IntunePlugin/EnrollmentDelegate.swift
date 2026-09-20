@@ -1,3 +1,4 @@
+import UIKit
 import IntuneMAMSwift
 
 class EnrollmentDelegateClass: NSObject, IntuneMAMEnrollmentDelegate {

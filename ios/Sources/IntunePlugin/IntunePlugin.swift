@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Capacitor
 import IntuneMAMSwift
 import MSAL
@@ -8,18 +9,18 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
     public let identifier = "IntuneMAM"
     public let jsName = "IntuneMAM"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "loginAndEnrollAccount", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "acquireToken", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "acquireTokenSilent", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "registerAndEnrollAccount", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "enrolledAccount", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "deRegisterAndUnenrollAccount", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "logoutOfAccount", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getPolicy", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "groupName", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "appConfig", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "sdkVersion", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "displayDiagnosticConsole", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "loginAndEnrollAccount", returnType: .promise),
+        CAPPluginMethod(name: "acquireToken", returnType: .promise),
+        CAPPluginMethod(name: "acquireTokenSilent", returnType: .promise),
+        CAPPluginMethod(name: "registerAndEnrollAccount", returnType: .promise),
+        CAPPluginMethod(name: "enrolledAccount", returnType: .promise),
+        CAPPluginMethod(name: "deRegisterAndUnenrollAccount", returnType: .promise),
+        CAPPluginMethod(name: "logoutOfAccount", returnType: .promise),
+        CAPPluginMethod(name: "getPolicy", returnType: .promise),
+        CAPPluginMethod(name: "groupName", returnType: .promise),
+        CAPPluginMethod(name: "appConfig", returnType: .promise),
+        CAPPluginMethod(name: "sdkVersion", returnType: .promise),
+        CAPPluginMethod(name: "displayDiagnosticConsole", returnType: .promise),
     ];
     
     weak var enrollmentDelegate: EnrollmentDelegateClass?
