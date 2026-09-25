@@ -8,20 +8,23 @@ import MSAL
 public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate {
     public let identifier = "IntuneMAM"
     public let jsName = "IntuneMAM"
+    // The MSAL and enrollment methods stay synchronous and keep their structure: they validate on the bridge queue,
+    // hand MSAL its work on the main queue themselves, and answer from the MSAL completion blocks or the Intune
+    // enrollment delegate. displayDiagnosticConsole only presents UIKit, so it runs on the main actor.
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "loginAndEnrollAccount", returnType: .promise),
-        CAPPluginMethod(name: "acquireToken", returnType: .promise),
-        CAPPluginMethod(name: "acquireTokenSilent", returnType: .promise),
-        CAPPluginMethod(name: "registerAndEnrollAccount", returnType: .promise),
-        CAPPluginMethod(name: "enrolledAccount", returnType: .promise),
-        CAPPluginMethod(name: "deRegisterAndUnenrollAccount", returnType: .promise),
-        CAPPluginMethod(name: "logoutOfAccount", returnType: .promise),
-        CAPPluginMethod(name: "getPolicy", returnType: .promise),
-        CAPPluginMethod(name: "groupName", returnType: .promise),
-        CAPPluginMethod(name: "appConfig", returnType: .promise),
-        CAPPluginMethod(name: "sdkVersion", returnType: .promise),
-        CAPPluginMethod(name: "displayDiagnosticConsole", returnType: .promise),
-    ];
+        .promise("loginAndEnrollAccount", IntuneMAM.loginAndEnrollAccount),
+        .promise("acquireToken", IntuneMAM.acquireToken),
+        .promise("acquireTokenSilent", IntuneMAM.acquireTokenSilent),
+        .promise("registerAndEnrollAccount", IntuneMAM.registerAndEnrollAccount),
+        .promise("enrolledAccount", IntuneMAM.enrolledAccount),
+        .promise("deRegisterAndUnenrollAccount", IntuneMAM.deRegisterAndUnenrollAccount),
+        .promise("logoutOfAccount", IntuneMAM.logoutOfAccount),
+        .promise("getPolicy", IntuneMAM.getPolicy),
+        .promise("groupName", IntuneMAM.groupName),
+        .promise("appConfig", IntuneMAM.appConfig),
+        .promise("sdkVersion", IntuneMAM.sdkVersion),
+        .async("displayDiagnosticConsole", IntuneMAM.displayDiagnosticConsole)
+    ]
     
     weak var enrollmentDelegate: EnrollmentDelegateClass?
     weak var policyDelegate = PolicyDelegateClass()
@@ -97,30 +100,26 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         notifyListeners("policyChange", data: nil)
     }
 
-    func _acquireToken(_ call: CAPPluginCall, interactive: Bool) {
+    func _acquireToken(_ call: CAPPluginCall, interactive: Bool) throws {
         // Used for refreshing a token
         let accountId = call.getString("accountId")
         if !interactive && accountId == nil {
-            call.reject("accountId must be provided to refresh token")
-            return
+            throw CAPPluginError("accountId must be provided to refresh token")
         }
 
         let forcePrompt = call.getBool("forcePrompt", false)
         let forceRefresh = call.getBool("forceRefresh", false)
 
         guard let scopes = call.getArray("scopes") as? [String] else {
-            call.reject("scopes not provided")
-            return
+            throw CAPPluginError("scopes not provided")
         }
 
         guard let intuneSettings = Bundle.main.object(forInfoDictionaryKey: "IntuneMAMSettings") as? [AnyHashable: AnyHashable] else {
-            call.reject("IntuneMAMSettings must be set in Info.plist to use this method. See https://docs.microsoft.com/en-us/mem/intune/developer/app-sdk-ios#configure-msal-settings-for-the-intune-app-sdk")
-            return
+            throw CAPPluginError("IntuneMAMSettings must be set in Info.plist to use this method. See https://docs.microsoft.com/en-us/mem/intune/developer/app-sdk-ios#configure-msal-settings-for-the-intune-app-sdk")
         }
 
         guard let clientId = intuneSettings["ADALClientId"] as? String else {
-            call.reject("ADALClientId must be specified in IntuneMAMSettings in Info.plist")
-            return
+            throw CAPPluginError("ADALClientId must be specified in IntuneMAMSettings in Info.plist")
         }
 
         let redirectUri = intuneSettings["ADALRedirectUri"] as? String
@@ -212,18 +211,17 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         }
     }
 
-    @objc public func acquireToken(_ call: CAPPluginCall) {
-        _acquireToken(call, interactive: true)
+    public func acquireToken(_ call: CAPPluginCall) throws {
+        try _acquireToken(call, interactive: true)
     }
 
-    @objc public func acquireTokenSilent(_ call: CAPPluginCall) {
-        _acquireToken(call, interactive: false)
+    public func acquireTokenSilent(_ call: CAPPluginCall) throws {
+        try _acquireToken(call, interactive: false)
     }
 
-    @objc public func registerAndEnrollAccount(_ call: CAPPluginCall) {
+    public func registerAndEnrollAccount(_ call: CAPPluginCall) throws {
         guard let accountId = call.getString("accountId") else {
-            call.reject("accountId must be provided. Call acquireToken first")
-            return
+            throw CAPPluginError("accountId must be provided. Call acquireToken first")
         }
         
         IntuneMAMEnrollmentManager.instance().delegate = EnrollmentDelegateClass() { (didSucceed: Bool, message: String) in
@@ -243,7 +241,7 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         IntuneMAMEnrollmentManager.instance().registerAndEnrollAccountId(accountId)
     }
 
-    @objc public func loginAndEnrollAccount(_ call: CAPPluginCall) {
+    public func loginAndEnrollAccount(_ call: CAPPluginCall) {
         IntuneMAMEnrollmentManager.instance().delegate = EnrollmentDelegateClass() { (didSucceed: Bool, message: String) in
             if didSucceed {
                 call.resolve()
@@ -255,7 +253,7 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         IntuneMAMEnrollmentManager.instance().loginAndEnrollAccount(nil)
     }
 
-    @objc public func enrolledAccount(_ call: CAPPluginCall) {
+    public func enrolledAccount(_ call: CAPPluginCall) {
         let accountId = IntuneMAMEnrollmentManager.instance().enrolledAccountId()
 
         call.resolve([
@@ -263,20 +261,17 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         ])
     }
 
-    @objc public func deRegisterAndUnenrollAccount(_ call: CAPPluginCall) {
+    public func deRegisterAndUnenrollAccount(_ call: CAPPluginCall) throws {
         guard let accountId = call.getString("accountId") else {
-            call.reject("No accountId provided")
-            return
+            throw CAPPluginError("No accountId provided")
         }
 
         guard let intuneSettings = Bundle.main.object(forInfoDictionaryKey: "IntuneMAMSettings") as? [AnyHashable: AnyHashable] else {
-            call.reject("IntuneMAMSettings must be set in Info.plist to use this method. See https://docs.microsoft.com/en-us/mem/intune/developer/app-sdk-ios#configure-msal-settings-for-the-intune-app-sdk")
-            return
+            throw CAPPluginError("IntuneMAMSettings must be set in Info.plist to use this method. See https://docs.microsoft.com/en-us/mem/intune/developer/app-sdk-ios#configure-msal-settings-for-the-intune-app-sdk")
         }
 
         guard let clientId = intuneSettings["ADALClientId"] as? String else {
-            call.reject("ADALClientId must be specified in IntuneMAMSettings in Info.plist")
-            return
+            throw CAPPluginError("ADALClientId must be specified in IntuneMAMSettings in Info.plist")
         }
 
         let redirectUri = intuneSettings["ADALRedirectUri"] as? String
@@ -338,20 +333,17 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         }
     }
 
-    @objc public func logoutOfAccount(_ call: CAPPluginCall) {
+    public func logoutOfAccount(_ call: CAPPluginCall) throws {
         guard let accountId = call.getString("accountId") else {
-            call.reject("No accountId provided")
-            return
+            throw CAPPluginError("No accountId provided")
         }
 
         guard let intuneSettings = Bundle.main.object(forInfoDictionaryKey: "IntuneMAMSettings") as? [AnyHashable: AnyHashable] else {
-            call.reject("IntuneMAMSettings must be set in Info.plist to use this method. See https://docs.microsoft.com/en-us/mem/intune/developer/app-sdk-ios#configure-msal-settings-for-the-intune-app-sdk")
-            return
+            throw CAPPluginError("IntuneMAMSettings must be set in Info.plist to use this method. See https://docs.microsoft.com/en-us/mem/intune/developer/app-sdk-ios#configure-msal-settings-for-the-intune-app-sdk")
         }
 
         guard let clientId = intuneSettings["ADALClientId"] as? String else {
-            call.reject("ADALClientId must be specified in IntuneMAMSettings in Info.plist")
-            return
+            throw CAPPluginError("ADALClientId must be specified in IntuneMAMSettings in Info.plist")
         }
 
         let redirectUri = intuneSettings["ADALRedirectUri"] as? String
@@ -405,10 +397,9 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         }
     }
 
-    @objc public func appConfig(_ call: CAPPluginCall) {
+    public func appConfig(_ call: CAPPluginCall) throws {
         guard let accountId = call.getString("accountId") else {
-            call.reject("No accountId provided")
-            return
+            throw CAPPluginError("No accountId provided")
         }
         let data = IntuneMAMAppConfigManager.instance().appConfig(forAccountId: accountId)
 
@@ -428,10 +419,9 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         ])
     }
 
-    @objc public func groupName(_ call: CAPPluginCall) {
+    public func groupName(_ call: CAPPluginCall) throws {
         guard let accountId = call.getString("accountId") else {
-            call.reject("No accountId provided")
-            return
+            throw CAPPluginError("No accountId provided")
         }
         let data = IntuneMAMAppConfigManager.instance().appConfig(forAccountId: accountId)
 
@@ -454,15 +444,13 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
         ])
     }
 
-    @objc public func getPolicy(_ call: CAPPluginCall) {
+    public func getPolicy(_ call: CAPPluginCall) throws {
         guard let accountId = call.getString("accountId") else {
-            call.reject("No accountId provided")
-            return
+            throw CAPPluginError("No accountId provided")
         }
 
         guard let policy = IntuneMAMPolicyManager.instance().policy(forAccountId: accountId) else {
-            call.reject("No policy for user")
-            return
+            throw CAPPluginError("No policy for user")
         }
 
         // Convert their dictionary mapping of number : number to an array for json serialization
@@ -492,14 +480,16 @@ public class IntuneMAM: CAPPlugin, CAPBridgedPlugin, IntuneMAMComplianceDelegate
 
     // Diagnostics methods:
 
-    @objc public func sdkVersion(_ call: CAPPluginCall) {
+    public func sdkVersion(_ call: CAPPluginCall) {
         call.resolve([
             "version": IntuneMAMVersionInfo.sdkVersion()
         ])
     }
 
-    @objc public func displayDiagnosticConsole(_ call: CAPPluginCall) {
+    /// Presents the Intune diagnostic console, which is UIKit, so the method runs on the main actor. It resolves
+    /// without data once the console is up.
+    @MainActor
+    public func displayDiagnosticConsole(_ call: CAPPluginCall) async {
         IntuneMAMDiagnosticConsole.display()
-        call.resolve()
     }
 }
