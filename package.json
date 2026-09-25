@@ -1,6 +1,6 @@
 {
   "name": "@capacitor-community/intune",
-  "version": "8.0.0",
+  "version": "9.0.0",
   "description": "Support for Microsoft Intune",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
@@ -65,7 +65,7 @@
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@capacitor/core": ">=8.0.0"
+    "@capacitor/core": ">=9.0.0"
   },
   "swiftlint": "@ionic/swiftlint-config",
   "eslintConfig": {
