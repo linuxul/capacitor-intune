@@ -4,3 +4,7 @@ dist/
 .turbo
 *.tgz
 .env
+
+# Gradle caches and outputs
+android/.gradle/
+android/build/
