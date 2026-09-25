@@ -7,6 +7,7 @@ import com.getcapacitor.JSObject
 import com.getcapacitor.Logger
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
+import com.getcapacitor.PluginException
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.microsoft.identity.client.AuthenticationCallback
@@ -54,8 +55,7 @@ public class IntunePlugin : Plugin() {
             try {
                 checkNotNull(call.getArray("scopes")).toList<Any?>().map { it as String }.toTypedArray()
             } catch (ex: Exception) {
-                call.reject("Must provide scopes list", ex = ex)
-                return
+                throw PluginException("Must provide scopes list", cause = ex)
             }
 
         // initiate the MSAL authentication on a background thread
@@ -94,11 +94,7 @@ public class IntunePlugin : Plugin() {
 
     @PluginMethod
     public fun registerAndEnrollAccount(call: PluginCall) {
-        val account = userAccount
-        if (account == null) {
-            call.reject("No user account. Call acquireToken first")
-            return
-        }
+        val account = userAccount ?: throw PluginException("No user account. Call acquireToken first")
         enrollmentManager.registerAccountForMAM(account.accountId, account.aadid, account.tenantID, account.authority)
         call.resolve()
     }
@@ -192,12 +188,7 @@ public class IntunePlugin : Plugin() {
 
     @PluginMethod
     public fun appConfig(call: PluginCall) {
-        val accountId = call.getString("accountId")
-
-        if (accountId == null) {
-            call.reject("No accountId provided")
-            return
-        }
+        val accountId = call.getString("accountId") ?: throw PluginException("No accountId provided")
 
         val data = JSObject()
         data.put("fullData", JSArray(appConfigFor(accountId).fullData))
@@ -206,12 +197,7 @@ public class IntunePlugin : Plugin() {
 
     @PluginMethod
     public fun groupName(call: PluginCall) {
-        val accountId = call.getString("accountId")
-
-        if (accountId == null) {
-            call.reject("No accountId provided")
-            return
-        }
+        val accountId = call.getString("accountId") ?: throw PluginException("No accountId provided")
 
         val data = appConfigFor(accountId)
 
